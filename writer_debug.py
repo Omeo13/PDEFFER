@@ -2,6 +2,16 @@ import os
 from docx import Document
 from PIL import Image
 
+def clean_cell_text(text):
+    """Cleans OCR text in a table cell to avoid spurious short fragments."""
+    if not text:
+        return ""
+    stripped = text.strip()
+    # Ignore very short text fragments (e.g. 'PO') which may be noise
+    if len(stripped) <= 2:
+        return ""
+    return stripped
+
 def write_ocr_output_to_docx(ocr_data, output_path):
     """
     Writes OCR extracted data to a DOCX file.
@@ -25,12 +35,11 @@ def write_ocr_output_to_docx(ocr_data, output_path):
 
         for i, row in enumerate(rows):
             for j, cell_text in enumerate(row):
-                # Fill empty cells with empty string if missing
-                table.cell(i, j).text = cell_text if cell_text else ""
+                cleaned_text = clean_cell_text(cell_text)
+                table.cell(i, j).text = cleaned_text
 
     doc.save(output_path)
     print(f"Saved: {output_path}")
-
 
 def batch_ocr_to_docx(input_folder, output_folder, ocr_function):
     """

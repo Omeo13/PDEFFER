@@ -65,3 +65,6 @@ OptionMenu(root, module_var, *modules).pack(pady=(0,20))
 Button(root, text="Run", command=run_selected_module).pack()
 
 root.mainloop()
+
+if __name__ == "__main__":
+    main()

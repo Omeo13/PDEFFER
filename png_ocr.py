@@ -1,12 +1,11 @@
-# png_ocr.py
-
-import os
 import pytesseract
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+import os
 
-pytesseract.pytesseract.tesseract_cmd = "tesseract"  # Modify if needed
+DEBUG_MODE = True
+DEBUG_OUTPUT_DIR = "debug_output"
 
 def extract_text(image):
     return pytesseract.image_to_string(image, config='--psm 3')
@@ -17,24 +16,28 @@ def detect_table_cells(image):
     binarized = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
                                       cv2.THRESH_BINARY_INV, 15, 10)
 
-    # Create line kernels
     scale = 20
-    horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (max(10, raw.shape[1] // scale), 1))
-    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(10, raw.shape[0] // scale)))
+    horizontal_size = max(10, raw.shape[1] // scale)
+    vertical_size = max(10, raw.shape[0] // scale)
 
-    # Detect lines
-    horizontal_lines = cv2.dilate(cv2.erode(binarized, horizontal_kernel), horizontal_kernel)
-    vertical_lines = cv2.dilate(cv2.erode(binarized, vertical_kernel), vertical_kernel)
+    horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (horizontal_size, 1))
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, vertical_size))
 
-    # Find intersections
+    horizontal_lines = cv2.erode(binarized, horizontal_kernel)
+    horizontal_lines = cv2.dilate(horizontal_lines, horizontal_kernel)
+    vertical_lines = cv2.erode(binarized, vertical_kernel)
+    vertical_lines = cv2.dilate(vertical_lines, vertical_kernel)
+
     intersections = cv2.bitwise_and(horizontal_lines, vertical_lines)
     intersections_coords = cv2.findNonZero(intersections)
+
     if intersections_coords is None or len(intersections_coords) < 4:
         return []
 
     pts = intersections_coords.reshape(-1, 2)
 
     def cluster_coords(coords, threshold=10):
+        coords = sorted(coords)
         clusters = []
         current = [coords[0]]
         for p in coords[1:]:
@@ -60,6 +63,7 @@ def detect_table_cells(image):
             h = clustered_ys[i + 1] - y
             if w > 15 and h > 10:
                 cells.append((x, y, w, h))
+
     return cells
 
 def group_cells_into_rows(cells, row_threshold=10):
@@ -79,32 +83,62 @@ def group_cells_into_rows(cells, row_threshold=10):
         rows.append(sorted(current_row, key=lambda b: b[0]))
     return rows
 
-def extract_text_from_cell(image, cell, padding=5):
+def extract_text_from_cell(image, cell, padding=10):
     x, y, w, h = cell
     x0 = max(x - padding, 0)
     y0 = max(y - padding, 0)
     x1 = min(x + w + padding, image.width)
     y1 = min(y + h + padding, image.height)
+
     crop = image.crop((x0, y0, x1, y1)).convert("L")
-    crop = crop.resize((crop.width * 3, crop.height * 3))
-    text = pytesseract.image_to_string(crop, config='--psm 6').strip()
+    crop = crop.resize((crop.width * 3, crop.height * 3), resample=Image.LANCZOS)
+    crop_cv = cv2.GaussianBlur(np.array(crop), (3, 3), 0)
+    _, crop_cv = cv2.threshold(crop_cv, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    crop_processed = Image.fromarray(crop_cv)
+
+    text = pytesseract.image_to_string(crop_processed, config='--psm 6').strip()
     return text
 
-def scan_png(image_path):
-    image = Image.open(image_path).convert("RGB")
+def extract_structured_data(image, debug_id=None):
     cells = detect_table_cells(image)
-    if cells:
-        rows = group_cells_into_rows(cells)
-        table_data = []
-        for row in rows:
-            row_data = [extract_text_from_cell(image, cell) for cell in row]
-            table_data.append(row_data)
-        return table_data
-    else:
-        return [[extract_text(image)]]
+    if not cells:
+        return {
+            "top_text": extract_text(image),
+            "table": None
+        }
 
-if __name__ == "__main__":
-    test_image = "output_pages/page_001.png"  # Example path
-    data = scan_png(test_image)
-    for row in data:
-        print(row)
+    table_top = min(c[1] for c in cells)
+    top_text_img = image.crop((0, 0, image.width, table_top))
+    top_text = extract_text(top_text_img).strip()
+
+    rows = group_cells_into_rows(cells)
+    table_data = []
+    debug_overlay = image.copy()
+
+    for r, row in enumerate(rows):
+        row_data = []
+        for c, cell in enumerate(row):
+            text = extract_text_from_cell(image, cell)
+            row_data.append(text)
+
+            if DEBUG_MODE:
+                draw = ImageDraw.Draw(debug_overlay)
+                x, y, w, h = cell
+                draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
+                try:
+                    draw.text((x + 2, y + 2), text[:15], fill="blue")
+                except Exception:
+                    pass  # Skip draw error if font fails
+
+        table_data.append(row_data)
+
+    if DEBUG_MODE:
+        os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
+        debug_path = os.path.join(DEBUG_OUTPUT_DIR, f"DEBUG_{debug_id or 'image'}.png")
+        debug_overlay.save(debug_path)
+        print(f"[DEBUG] Saved debug overlay to {debug_path}")
+
+    return {
+        "top_text": top_text,
+        "table": table_data
+    }
