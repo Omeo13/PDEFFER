@@ -1,0 +1,60 @@
+debug_ocr.py
+tmp_local/
+temp_processing/
+output_pages/
+.idea
+# === Python Bytecode ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# === Temporary and Cache Files ===
+*.log
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+*.thumb
+*.sublime-workspace
+*.sublime-project
+
+# === Virtual Environments ===
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# === PyCharm Specific ===
+.idea/
+
+# === Output and Generated Data ===
+output_pages/
+output_docx/
+output/
+tmp_local/
+temp_processing/
+debug_output/
+debug_cells/
+
+# === Testing and Debug Scripts ===
+test-tools/
+debug_ocr.py
+debug_test_single_png.py
+writer_debug.py
+ocr_debug.py
+
+# === Notebooks and Drafts ===
+notebooks/
+*.txt
+*.odp
+*.md
+
+# === Frontend Test Files (if still around) ===
+frontend/test.css
+frontend/test.html
+frontend/refresh.md
+frontend/design-code-tested.md
+frontend/guidelines.md
+frontend/cards-plan.md
