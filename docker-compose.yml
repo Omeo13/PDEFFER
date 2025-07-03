@@ -1,1 +1,15 @@
+version: "3.9"
 
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Note 4 slashes to absolute path inside container
+      DATABASE_URL: "sqlite:////data/users.db"
+    volumes:
+      - ./backend:/app
+      - ./data:/data
