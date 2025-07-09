@@ -1,5 +1,4 @@
 import os
-import io
 import uuid
 import time
 import shutil
@@ -7,7 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi_utils.tasks import repeat_every
 from PIL import Image
-import pdf_to_png
+from legacy_scripts import pdf_to_png
 import png_ocr
 import docx_writer
 

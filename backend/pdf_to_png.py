@@ -1,6 +1,7 @@
 import os
 from pdf2image import convert_from_path
-import pdf_to_png
+from legacy_scripts import pdf_to_png
+
 
 def convert_pdf_to_png(pdf_path, output_folder="output_pages", dpi=300):
     """

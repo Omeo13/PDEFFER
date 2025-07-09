@@ -39,7 +39,7 @@ debug_output/
 debug_cells/
 
 # === Testing and Debug Scripts ===
-test-tools/
+legacy_scripts/test-tools/
 debug_ocr.py
 debug_test_single_png.py
 writer_debug.py
