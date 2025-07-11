@@ -1,42 +1,75 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
-
-from app.utils.database import SessionLocal
-from app.models.users import User, UserCreate, UserRead
+from app.utils.jwt_helpers import create_access_token, create_refresh_token, decode_token
+from jose import JWTError
+from datetime import timedelta
+import os
 
 router = APIRouter()
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 
-def get_db():
-    db = SessionLocal()
+# Temporary in-memory user store (replace with real user management later)
+fake_users_db = {
+    "alice": {
+        "username": "alice",
+        "hashed_password": pwd_context.hash("secret123"),
+        "id": "1"
+    }
+}
+
+refresh_token_expires_delta = timedelta(days=7)
+
+@router.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = fake_users_db.get(form_data.username)
+    if not user or not pwd_context.verify(form_data.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    access_token = create_access_token({"sub": user["id"]})
+    refresh_token_str = create_refresh_token({"sub": user["id"]})
+
+    # No DB storage or revocation for refresh tokens
+
+    return JSONResponse({
+        "access_token": access_token,
+        "refresh_token": refresh_token_str,
+        "token_type": "bearer"
+    })
+
+@router.post("/refresh")
+def refresh_token(request: Request, response: Response):
+    cookie_token = request.cookies.get("refresh_token")
+    if not cookie_token:
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
     try:
-        yield db
-    finally:
-        db.close()
+        payload = decode_token(cookie_token)
+        token_sub = payload.get("sub")
+        token_type = payload.get("type")
 
-@router.post("/users/", response_model=UserRead)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if username already exists
-    db_user = db.query(User).filter(User.username == user.username).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        if token_type != "refresh":
+            raise HTTPException(status_code=400, detail="Invalid token type")
 
-    hashed_password = pwd_context.hash(user.password)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    new_user = User(
-        username=user.username,
-        email=user.email,
-        hashed_password=hashed_password,
+    # No DB check for revocation or expiration - assume valid token
+
+    new_access_token = create_access_token({"sub": token_sub})
+    new_refresh_token = create_refresh_token({"sub": token_sub})
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/refresh",
+        max_age=refresh_token_expires_delta.total_seconds()
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
 
-@router.get("/users/", response_model=list[UserRead])
-def read_users(db: Session = Depends(get_db)):
-    users = db.query(User).all()
-    return users
-
+    return {"access_token": new_access_token, "token_type": "bearer"}

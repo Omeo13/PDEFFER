@@ -7,9 +7,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    environment:
+    #environment:
       # Note 4 slashes to absolute path inside container
-      DATABASE_URL: "sqlite:////data/users.db"
+      #DATABASE_URL: "sqlite:////data/models.db"
     volumes:
       - ./backend:/app
       - ./data:/data

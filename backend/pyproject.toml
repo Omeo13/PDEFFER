@@ -15,10 +15,10 @@ fastapi-utils = "^0.8.0"
 pdfplumber = "*"
 python-docx = "*"
 pillow = "*"
-sqlalchemy = "*"
+
 asyncpg = "*"
 psycopg2-binary = "*"
-alembic = "*"
+
 typing-inspect = "^0.9.0"
 pdf2image = "^1.17.0"
 opencv-python-headless = "^4.11.0.86"
@@ -26,8 +26,11 @@ numpy = "^2.3.1"
 pytesseract = "^0.3.13"
 email-validator = "^2.2.0"
 passlib = "^1.7.4"
-
-[tool.poetry.dev-dependencies]
+pyjwt = "^2.10.1"
+python-dotenv = "^1.1.1"
+python-multipart = "*"
+python-jose = "^3.3.0"
+[tool.poetry.group.dev.dependencies]
 pytest = "*"
 black = "*"
 isort = "*"

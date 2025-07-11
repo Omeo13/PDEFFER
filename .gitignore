@@ -29,7 +29,7 @@ ENV/
 # === PyCharm Specific ===
 .idea/
 
-# === Output and Generated Data ===
+# === Output and Generated data ===
 output_pages/
 output_docx/
 output/
@@ -58,3 +58,4 @@ frontend/refresh.md
 frontend/design-code-tested.md
 frontend/guidelines.md
 frontend/cards-plan.md
+/wildfire.sh
